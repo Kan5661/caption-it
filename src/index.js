@@ -27,13 +27,14 @@ class CaptionIt {
   constructor() {
     this.styles = {
       gif: {
-        fontsize: 72,
+        fontsize: 64,
         fontcolor: 'white',
-        borderw: 3,
-        bordercolor: 'black',
+        borderw: 6,
+        bordercolor: 'black@0.8',
         x: '(w-text_w)/2',
         y: '50',
-        line_spacing: 50
+        line_spacing: 30,
+        wrapLen: 25
       },
       tiktok: {
         fontsize: 32,
@@ -43,8 +44,9 @@ class CaptionIt {
         boxcolor: 'black@0.6',
         boxborderw: 10,
         x: '(w-text_w)/2',
-        y: '(h-text_h)/2',  // Back to center positioning
-        line_spacing: 10  // Added missing line_spacing
+        y: '(h-text_h)/2',
+        line_spacing: 10,
+        wrapLen: 45
       }
     };
   }
@@ -69,12 +71,12 @@ class CaptionIt {
     }
 
     const styleConfig = this.styles[style];
-    const captionFile = wrapTextToFile(text, 30);
+    const captionFile = wrapTextToFile(text, styleConfig.wrapLen || 30);
 
     // Estimate number of lines for box height
     const numLines = text.split(/\s+/).reduce((acc, word, i, arr) => {
       const line = (acc.line + ' ' + word).trim();
-      if (line.length > 30 || i === arr.length - 1) {
+      if (line.length > (styleConfig.wrapLen || 30) || i === arr.length - 1) {
         acc.count++;
         acc.line = word;
       } else {
@@ -87,26 +89,21 @@ class CaptionIt {
 
     let videoFilters = [];
 
-    // Add background box for GIF style only
     if (style === 'gif') {
-      // GIF style: white background box at top
-      const drawBoxFilter = `drawbox=x=0:y=${styleConfig.y - 40}:w=iw:h=${boxHeight + 80}:color=white@0.9:t=fill`;
+      const drawBoxFilter = `drawbox=x=0:y=${styleConfig.y - 40}:w=iw:h=${boxHeight + 80}:color=white:t=fill`;
       videoFilters.push(drawBoxFilter);
     }
 
-    // Add text with background
     let drawTextFilter = `drawtext=textfile='${captionFile}':` +
       `fontsize=${styleConfig.fontsize}:` +
       `fontcolor=${styleConfig.fontcolor}:` +
       `x=${styleConfig.x}:` +
       `y=${styleConfig.y}`;
 
-    // Add TikTok-style background box using drawtext's box parameter
     if (style === 'tiktok' && styleConfig.box) {
       drawTextFilter += `:box=1:boxcolor=${styleConfig.boxcolor}:boxborderw=${styleConfig.boxborderw}`;
     }
 
-    // Only add line_spacing if it's defined
     if (styleConfig.line_spacing !== undefined) {
       drawTextFilter += `:line_spacing=${styleConfig.line_spacing}`;
     }
@@ -186,11 +183,11 @@ class CaptionIt {
 
     const drawTextFilters = captions.flatMap((caption) => {
       const enableCondition = `between(t,${caption.startTime},${caption.endTime})`;
-      const captionFile = wrapTextToFile(caption.text, 30);
+      const captionFile = wrapTextToFile(caption.text, styleConfig.wrapLen || 30);
 
       const numLines = caption.text.split(/\s+/).reduce((acc, word, i, arr) => {
         const line = (acc.line + ' ' + word).trim();
-        if (line.length > 30 || i === arr.length - 1) {
+        if (line.length > (styleConfig.wrapLen || 30) || i === arr.length - 1) {
           acc.count++;
           acc.line = word;
         } else {
@@ -203,9 +200,7 @@ class CaptionIt {
 
       let filters = [];
 
-      // Add background box for GIF style only
       if (style === 'gif') {
-        // GIF style: white background box at top
         const drawBox = `drawbox=x=0:y=${styleConfig.y - 40}:w=iw:h=${boxHeight + 80}:color=white@0.9:t=fill:enable='${enableCondition}'`;
         filters.push(drawBox);
       }
@@ -217,12 +212,10 @@ class CaptionIt {
         `y=${styleConfig.y}:` +
         `enable='${enableCondition}'`;
 
-      // Add TikTok-style background box using drawtext's box parameter
       if (style === 'tiktok' && styleConfig.box) {
         drawText += `:box=1:boxcolor=${styleConfig.boxcolor}:boxborderw=${styleConfig.boxborderw}`;
       }
 
-      // Only add line_spacing if it's defined
       if (styleConfig.line_spacing !== undefined) {
         drawText += `:line_spacing=${styleConfig.line_spacing}`;
       }
