@@ -8,8 +8,7 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "node bin/cli.js",
-    "prepublishOnly": "npm test"
+    "dev": "node bin/cli.js"
   },
   "keywords": [
     "video",
