@@ -1,0 +1,43 @@
+{
+  "name": "caption-it",
+  "version": "1.0.0",
+  "description": "Add captions to videos with different styles (GIF-style and TikTok-style)",
+  "main": "src/index.js",
+  "bin": {
+    "caption-it": "./bin/cli.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node bin/cli.js",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [
+    "video",
+    "captions",
+    "subtitles",
+    "ffmpeg",
+    "cli",
+    "gif-style",
+    "tiktok-style"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^11.0.0",
+    "fluent-ffmpeg": "^2.1.2",
+    "ora": "^5.4.1",
+    "tmp": "^0.2.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/caption-it.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/caption-it/issues"
+  },
+  "homepage": "https://github.com/yourusername/caption-it#readme"
+}

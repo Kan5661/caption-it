@@ -1,0 +1,27 @@
+[
+  {
+    "text": "Welcome to our video!",
+    "startTime": 0,
+    "endTime": 3
+  },
+  {
+    "text": "This is the first scene",
+    "startTime": 3,
+    "endTime": 6
+  },
+  {
+    "text": "Here's something interesting",
+    "startTime": 6,
+    "endTime": 9
+  },
+  {
+    "text": "Don't forget to like and subscribe!",
+    "startTime": 9,
+    "endTime": 12
+  },
+  {
+    "text": "Thanks for watching!",
+    "startTime": 12,
+    "endTime": 15
+  }
+]
