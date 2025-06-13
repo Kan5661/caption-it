@@ -47,6 +47,35 @@ function getVideoInfo(inputPath) {
   });
 }
 
+// ✅ Calculate scaled font size based on video resolution
+function calculateScaledFontSize(videoWidth, videoHeight, baseStyle) {
+  // Define reference resolutions for each style
+  const referenceResolutions = {
+    gif: { width: 1920, height: 1080 }, // Full HD reference
+    tiktok: { width: 1080, height: 1920 } // Vertical mobile reference
+  };
+
+  const reference = referenceResolutions[baseStyle] || referenceResolutions.gif;
+
+  // For TikTok style, keep the original size (no scaling)
+  if (baseStyle === 'tiktok') {
+    return 1.0;
+  }
+
+  // Calculate scaling factor based on video area compared to reference (for GIF style)
+  const videoArea = videoWidth * videoHeight;
+  const referenceArea = reference.width * reference.height;
+  const areaRatio = videoArea / referenceArea;
+
+  // Use square root of area ratio for more balanced scaling
+  const scaleFactor = Math.sqrt(areaRatio);
+
+  // Apply reasonable bounds to prevent extremely small or large fonts
+  const boundedScaleFactor = Math.max(0.3, Math.min(scaleFactor, 3.0));
+
+  return boundedScaleFactor;
+}
+
 // ✅ Calculate wrap length based on video width and font size
 function calculateWrapLength(videoWidth, fontSize, padding = 40) {
   // Rough estimate: each character takes about 0.6 * fontSize pixels
@@ -60,30 +89,57 @@ function calculateWrapLength(videoWidth, fontSize, padding = 40) {
 
 class CaptionIt {
   constructor() {
-    this.styles = {
+    // Base styles with reference font sizes (for 1920x1080 for gif, 1080x1920 for tiktok)
+    this.baseStyles = {
       gif: {
-        fontsize: 64,
-        fontcolor: 'black',
+        baseFontsize: 124, // Base font size for 1920x1080 (3x bigger)
+        fontcolor: 'white',
         borderw: 6,
-        bordercolor: 'white@0.95',
+        bordercolor: 'black@0.95',
         line_spacing: 30,
-        wrapLen: 25,
-        textPadding: 40, // Padding around text area
-        backgroundColor: 'black' // Background color for text area
+        textPadding: 40,
+        backgroundColor: 'black'
       },
       tiktok: {
-        fontsize: 32,
+        baseFontsize: 48, // Base font size for 1080x1920
         fontcolor: 'white',
         borderw: 0,
+        bordercolor: 'black', // Add default bordercolor even though borderw is 0
         box: 1,
         boxcolor: 'black@0.6',
         boxborderw: 10,
         x: '(w-text_w)/2',
         y: '(h-text_h)/2',
-        line_spacing: 10,
-        wrapLen: 45
+        line_spacing: 10
       }
     };
+  }
+
+  // Get scaled style configuration based on video dimensions
+  getScaledStyle(styleName, videoWidth, videoHeight) {
+    const baseStyle = this.baseStyles[styleName];
+    if (!baseStyle) {
+      throw new Error(`Unknown style: ${styleName}. Available styles: ${Object.keys(this.baseStyles).join(', ')}`);
+    }
+
+    const scaleFactor = calculateScaledFontSize(videoWidth, videoHeight, styleName);
+    const scaledFontSize = Math.round(baseStyle.baseFontsize * scaleFactor);
+
+    // Create scaled style configuration
+    const scaledStyle = {
+      ...baseStyle,
+      fontsize: scaledFontSize,
+      // Scale border width proportionally (but keep it reasonable)
+      borderw: Math.max(1, Math.round(baseStyle.borderw * scaleFactor * 0.7)),
+      // Scale line spacing proportionally
+      line_spacing: Math.round((baseStyle.line_spacing || 0) * scaleFactor),
+      // Scale text padding for gif style
+      textPadding: baseStyle.textPadding ? Math.round(baseStyle.textPadding * scaleFactor) : undefined,
+      // Scale box border width for tiktok style
+      boxborderw: baseStyle.boxborderw ? Math.max(2, Math.round(baseStyle.boxborderw * scaleFactor * 0.8)) : undefined
+    };
+
+    return scaledStyle;
   }
 
   // Helper method to calculate text height
@@ -117,18 +173,23 @@ class CaptionIt {
       throw new Error(`Input file does not exist: ${inputPath}`);
     }
 
-    if (!this.styles[style]) {
-      throw new Error(`Unknown style: ${style}. Available styles: ${Object.keys(this.styles).join(', ')}`);
+    if (!this.baseStyles[style]) {
+      throw new Error(`Unknown style: ${style}. Available styles: ${Object.keys(this.baseStyles).join(', ')}`);
     }
-
-    const styleConfig = this.styles[style];
 
     // Get video dimensions
     const videoInfo = await getVideoInfo(inputPath);
 
-    // Calculate wrap length based on video width
+    // Get scaled style configuration
+    const styleConfig = this.getScaledStyle(style, videoInfo.width, videoInfo.height);
+
+    // Calculate wrap length based on video width and scaled font size
     const wrapLen = calculateWrapLength(videoInfo.width, styleConfig.fontsize);
     const captionFile = wrapTextToFile(text, wrapLen);
+
+    console.log(`Video resolution: ${videoInfo.width}x${videoInfo.height}`);
+    console.log(`Scaled font size: ${styleConfig.fontsize} (base: ${this.baseStyles[style].baseFontsize})`);
+    console.log(`Calculated wrap length: ${wrapLen} characters`);
 
     if (style === 'gif') {
       return this.addGifStyleCaption({
@@ -211,6 +272,7 @@ class CaptionIt {
         .on('start', (commandLine) => {
           console.log('FFmpeg command:', commandLine);
           console.log(`Video dimensions: ${videoInfo.width}x${videoInfo.height}`);
+          console.log(`Scaled font size: ${styleConfig.fontsize}`);
           console.log(`Calculated wrap length: ${wrapLen} characters`);
         })
         .on('progress', (progress) => {
@@ -248,7 +310,9 @@ class CaptionIt {
     styleConfig,
     startTime,
     duration,
-    fontfile
+    fontfile,
+    videoInfo,
+    wrapLen
   }) {
     let drawTextFilter = `drawtext=textfile='${captionFile}':` +
       `fontsize=${styleConfig.fontsize}:` +
@@ -288,6 +352,8 @@ class CaptionIt {
       command
         .on('start', (commandLine) => {
           console.log('FFmpeg command:', commandLine);
+          console.log(`Video dimensions: ${videoInfo.width}x${videoInfo.height}`);
+          console.log(`Scaled font size: ${styleConfig.fontsize}`);
         })
         .on('progress', (progress) => {
           if (progress.percent) {
@@ -329,17 +395,22 @@ class CaptionIt {
       throw new Error(`Input file does not exist: ${inputPath}`);
     }
 
-    if (!this.styles[style]) {
-      throw new Error(`Unknown style: ${style}. Available styles: ${Object.keys(this.styles).join(', ')}`);
+    if (!this.baseStyles[style]) {
+      throw new Error(`Unknown style: ${style}. Available styles: ${Object.keys(this.baseStyles).join(', ')}`);
     }
-
-    const styleConfig = this.styles[style];
 
     // Get video dimensions
     const videoInfo = await getVideoInfo(inputPath);
 
-    // Calculate wrap length based on video width
+    // Get scaled style configuration
+    const styleConfig = this.getScaledStyle(style, videoInfo.width, videoInfo.height);
+
+    // Calculate wrap length based on video width and scaled font size
     const wrapLen = calculateWrapLength(videoInfo.width, styleConfig.fontsize);
+
+    console.log(`Video resolution: ${videoInfo.width}x${videoInfo.height}`);
+    console.log(`Scaled font size: ${styleConfig.fontsize} (base: ${this.baseStyles[style].baseFontsize})`);
+    console.log(`Calculated wrap length: ${wrapLen} characters`);
 
     if (style === 'gif') {
       return this.addMultipleGifStyleCaptions({
@@ -423,6 +494,7 @@ class CaptionIt {
         .on('start', (commandLine) => {
           console.log('FFmpeg command:', commandLine);
           console.log(`Video dimensions: ${videoInfo.width}x${videoInfo.height}`);
+          console.log(`Scaled font size: ${styleConfig.fontsize}`);
           console.log(`Calculated wrap length: ${wrapLen} characters`);
           console.log(`Processing ${captions.length} captions`);
         })
@@ -512,6 +584,7 @@ class CaptionIt {
         .on('start', (commandLine) => {
           console.log('FFmpeg command:', commandLine);
           console.log(`Video dimensions: ${videoInfo.width}x${videoInfo.height}`);
+          console.log(`Scaled font size: ${styleConfig.fontsize}`);
           console.log(`Calculated wrap length: ${wrapLen} characters`);
           console.log(`Processing ${captions.length} captions`);
         })
@@ -549,11 +622,16 @@ class CaptionIt {
   }
 
   getAvailableStyles() {
-    return Object.keys(this.styles);
+    return Object.keys(this.baseStyles);
   }
 
-  getStyleConfig(styleName) {
-    return this.styles[styleName] || null;
+  getStyleConfig(styleName, videoWidth = 1920, videoHeight = 1080) {
+    return this.getScaledStyle(styleName, videoWidth, videoHeight);
+  }
+
+  // New method to get base style configuration (unscaled)
+  getBaseStyleConfig(styleName) {
+    return this.baseStyles[styleName] || null;
   }
 }
 

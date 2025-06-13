@@ -125,8 +125,8 @@ async function addSingleCaption() {
       outputPath: 'output.mp4',
       text: 'Hello World!',
       style: 'gif',
-      startTime: 0,
-      duration: 5
+      startTime: 0, // 0 default
+      duration: 5 // full video length by default
     });
     console.log('Caption added:', result);
   } catch (error) {
@@ -168,7 +168,7 @@ console.log('GIF style config:', gifStyle);
 
 ### GIF Style
 - **Position**: Top of video
-- **Background**: White semi-transparent box
+- **Background**: Black
 - **Text**: White text with black outline
 - **Use case**: Meme-style captions, similar to GIF captions
 
@@ -244,4 +244,4 @@ MIT
 
 ## Issues
 
-If you encounter any issues or have questions, please file an issue on the [GitHub repository](https://github.com/yourusername/caption-it/issues).
+If you encounter any issues or have questions, please file an issue on the [GitHub repository](https://github.com/kan5661/caption-it/issues).

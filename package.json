@@ -34,10 +34,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/caption-it.git"
+    "url": "git+https://github.com/kan5661/caption-it.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/caption-it/issues"
+    "url": "https://github.com/kan5661/caption-it/issues"
   },
-  "homepage": "https://github.com/yourusername/caption-it#readme"
+  "homepage": "https://github.com/kan5661/caption-it#readme"
 }
