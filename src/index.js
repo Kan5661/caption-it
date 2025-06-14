@@ -51,32 +51,101 @@ function getVideoInfo(inputPath) {
 
 // Calculate scaled font size based on video resolution
 function calculateScaledFontSize(videoWidth, videoHeight, baseStyle) {
+    // =============================================
+    // REFERENCE CONFIGURATION
+    // =============================================
+    // These determine what resolution is considered "full scale" (1.0)
+    // Larger values = text will be smaller at same resolution
     const referenceResolutions = {
-        gif: { width: 1920, height: 1080 },
-        tiktok: { width: 1080, height: 1920 },
+        gif: { width: 1920, height: 1080 },  // 1080p reference for GIF style
+        tiktok: { width: 1080, height: 1920 } // Vertical 9:16 reference for TikTok
     };
 
-    const reference =
-        referenceResolutions[baseStyle] || referenceResolutions.gif;
+    // =============================================
+    // SCALING THRESHOLDS (in pixels)
+    // =============================================
+    const TIKTOK_SCALING_START = 1000; // Width/height where TikTok scaling begins
+    const GIF_SCALING_START = 700;     // Width/height where GIF scaling begins
+    const EXTRA_SMALL_THRESHOLD = 300; // Width/height for ultra-small devices
 
-    if (baseStyle === "tiktok") {
-        return 1.0;
-    }
+    // =============================================
+    // SCALING AGGRESSIVENESS (exponents)
+    // Higher values = more rapid size reduction
+    // =============================================
+    const TIKTOK_EXPONENT = 2.0;      // TikTok main scaling curve
+    const GIF_EXPONENT = 1.5;          // GIF main scaling curve
+    const TIKTOK_EXTRA_EXPONENT = 1.8; // TikTok <300px scaling
+    const GIF_EXTRA_EXPONENT = 1.2;    // GIF <300px scaling
 
+    // =============================================
+    // SIZE LIMITS (multipliers)
+    // =============================================
+    const TIKTOK_MIN_SCALE = 0.5;      // Minimum scale for TikTok (>300px)
+    const TIKTOK_EXTRA_MIN = 0.2;     // Absolute minimum for TikTok (<300px) - REDUCED
+    const GIF_MIN_SCALE = 0.3;         // Minimum scale for GIF (>300px)
+    const GIF_EXTRA_MIN = 0.1;         // Absolute minimum for GIF (<300px)
+    const TIKTOK_MAX_SCALE = 1.0;      // Never scale TikTok above reference
+    const GIF_MAX_SCALE = 3.0;         // Maximum upscale for GIF
+
+    // =============================================
+    // CORE CALCULATION
+    // =============================================
+    const reference = referenceResolutions[baseStyle] || referenceResolutions.gif;
     const videoArea = videoWidth * videoHeight;
     const referenceArea = reference.width * reference.height;
-    const areaRatio = videoArea / referenceArea;
 
-    let scaleFactor = Math.sqrt(areaRatio);
-
-    // Apply more aggressive scaling for small videos
+    // Base scaling (square root of area ratio gives balanced scaling)
+    let scaleFactor = Math.sqrt(videoArea / referenceArea);
     const minDimension = Math.min(videoWidth, videoHeight);
-    if (minDimension < 700) {
-        const smallScaleFactor = Math.pow(minDimension / 700, 1.5);
-        scaleFactor *= smallScaleFactor;
-    }
 
-    return Math.max(0.3, Math.min(scaleFactor, 3.0));
+    if (baseStyle === "tiktok") {
+        // TIKTOK STYLE SCALING =============================
+
+        // First stage scaling (1000px down to 300px)
+        if (minDimension < TIKTOK_SCALING_START) {
+            const t = minDimension / TIKTOK_SCALING_START; // Normalized value 0-1
+            scaleFactor *= Math.pow(t, TIKTOK_EXPONENT);
+        }
+
+        // Second stage scaling (<300px) - FIXED LOGIC
+        if (minDimension < EXTRA_SMALL_THRESHOLD) {
+            const t = minDimension / EXTRA_SMALL_THRESHOLD; // Normalized value 0-1
+            const extraSmallMultiplier = Math.pow(t, TIKTOK_EXTRA_EXPONENT);
+            scaleFactor *= extraSmallMultiplier;
+
+            // Apply absolute minimum only at the very end
+            scaleFactor = Math.max(TIKTOK_EXTRA_MIN, scaleFactor);
+        } else {
+            // Apply regular minimum for larger sizes
+            scaleFactor = Math.max(TIKTOK_MIN_SCALE, scaleFactor);
+        }
+
+        return Math.min(scaleFactor, TIKTOK_MAX_SCALE);
+
+    } else {
+        // GIF STYLE SCALING ================================
+
+        // First stage scaling (700px down to 300px)
+        if (minDimension < GIF_SCALING_START) {
+            const t = minDimension / GIF_SCALING_START;
+            scaleFactor *= Math.pow(t, GIF_EXPONENT);
+        }
+
+        // Second stage scaling (<300px) - FIXED LOGIC
+        if (minDimension < EXTRA_SMALL_THRESHOLD) {
+            const t = minDimension / EXTRA_SMALL_THRESHOLD;
+            const extraSmallMultiplier = Math.pow(t, GIF_EXTRA_EXPONENT);
+            scaleFactor *= extraSmallMultiplier;
+
+            // Apply absolute minimum only at the very end
+            scaleFactor = Math.max(GIF_EXTRA_MIN, scaleFactor);
+        } else {
+            // Apply regular minimum for larger sizes
+            scaleFactor = Math.max(GIF_MIN_SCALE, scaleFactor);
+        }
+
+        return Math.min(scaleFactor, GIF_MAX_SCALE);
+    }
 }
 
 // Calculate wrap length based on video width and font size
