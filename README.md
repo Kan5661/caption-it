@@ -1,6 +1,6 @@
 # caption-it
 
-A simple to use npm package for adding captions to videos with different styles. Supports both CLI usage and programmatic API.
+A simple to use npm package for adding captions to videos (also works on images) with different styles. Supports both CLI usage and programmatic API.
 
 ## Features
 
